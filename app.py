@@ -98,6 +98,45 @@ st.markdown(
 )
 
 
+def save_env_credentials(client_id: str, client_secret: str, author_name: str, author_role: str):
+    """Saves updated credentials to local .env file securely."""
+    env_path = Path(__file__).resolve().parent / ".env"
+    lines = []
+    if env_path.exists():
+        lines = env_path.read_text(encoding="utf-8").splitlines()
+
+    updates = {
+        "LINKEDIN_CLIENT_ID": client_id.strip(),
+        "LINKEDIN_CLIENT_SECRET": client_secret.strip(),
+        "DEFAULT_AUTHOR_NAME": author_name.strip(),
+        "DEFAULT_AUTHOR_ROLE": author_role.strip(),
+    }
+
+    new_lines = []
+    found_keys = set()
+    for line in lines:
+        if "=" in line and not line.strip().startswith("#"):
+            k, _ = line.split("=", 1)
+            k = k.strip()
+            if k in updates:
+                new_lines.append(f"{k}={updates[k]}")
+                found_keys.add(k)
+                continue
+        new_lines.append(line)
+
+    for k, v in updates.items():
+        if k not in found_keys:
+            new_lines.append(f"{k}={v}")
+
+    env_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+
+    # Update current in-memory config
+    config.client_id = client_id.strip()
+    config.client_secret = client_secret.strip()
+    config.author_name = author_name.strip()
+    config.author_role = author_role.strip()
+
+
 def handle_oauth_callback():
     """Intercepts and handles OAuth 2.0 query parameters from LinkedIn redirect."""
     params = st.query_params
@@ -610,14 +649,7 @@ elif menu == "🔑 LinkedIn Auth & Status":
         st.subheader("Connect via Official OAuth Flow")
 
         if not config.is_linkedin_configured():
-            st.error("Missing `LINKEDIN_CLIENT_ID` or `LINKEDIN_CLIENT_SECRET` in `.env` configuration.")
-            st.info(
-                "**Setup Steps:**\n"
-                "1. Go to [LinkedIn Developer Portal](https://developer.linkedin.com)\n"
-                "2. Create an App and add the **'Share on LinkedIn'** and **'Sign In with LinkedIn using OpenID Connect'** products.\n"
-                "3. Add Redirect URI: `http://localhost:8501`\n"
-                "4. Copy Client ID and Client Secret into your `.env` file."
-            )
+            st.warning("LinkedIn Developer credentials not yet configured.")
         else:
             try:
                 auth_url, state_token = LinkedInOAuth.build_auth_url(
@@ -645,6 +677,23 @@ elif menu == "🔑 LinkedIn Auth & Status":
 
             except OAuthError as e:
                 st.error(f"Configuration error: {e}")
+
+        # In-App Credential Setup for anyone (or friends)
+        with st.expander("⚙️ Enter or Edit Credentials Directly in App", expanded=not config.is_linkedin_configured()):
+            st.caption("Enter your details below to save them directly to your local `.env`:")
+            input_name = st.text_input("Your Name / Display Name", value=config.author_name)
+            input_role = st.text_input("Your Role / Headline", value=config.author_role)
+            input_cid = st.text_input("LinkedIn Client ID", value=config.client_id)
+            input_sec = st.text_input("LinkedIn Client Secret", type="password", value=config.client_secret)
+
+            if st.button("💾 Save Credentials & Profile", type="primary", use_container_width=True):
+                if input_cid and input_sec:
+                    save_env_credentials(input_cid, input_sec, input_name, input_role)
+                    st.success("Credentials saved to local .env! Refreshing...")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error("Please provide both Client ID and Client Secret.")
 
     st.divider()
     st.subheader("Security & Privacy Guarantees")

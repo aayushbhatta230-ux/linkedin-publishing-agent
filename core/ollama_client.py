@@ -54,6 +54,24 @@ class OllamaClient:
                 has_writer = any(self.writing_model.split(":")[0] in m for m in model_names)
                 has_vision = any(self.vision_model.split(":")[0] in m for m in model_names)
 
+                # Auto-detect best installed writing model if configured default is missing
+                if not has_writer and model_names:
+                    for candidate in model_names:
+                        c_lower = candidate.lower()
+                        if "embed" in c_lower:
+                            continue
+                        if any(w in c_lower for w in ["qwen", "llama", "gemma", "mistral", "phi"]):
+                            self.writing_model = candidate
+                            has_writer = True
+                            logger.info("Auto-selected installed writing model: %s", self.writing_model)
+                            break
+                    if not has_writer:
+                        for candidate in model_names:
+                            if "embed" not in candidate.lower():
+                                self.writing_model = candidate
+                                has_writer = True
+                                break
+
                 return {
                     "available": True,
                     "models": model_names,

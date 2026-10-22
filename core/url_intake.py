@@ -1,22 +1,25 @@
 """
 URL intake and metadata extraction service.
 Specialized parsers for GitHub repositories and arbitrary public web demo pages.
+Auto-recognizes repositories by name/title across known user handles (e.g. aayushbhatta230-ux).
 Zero third-party scraper dependencies (built-in HTML parser + requests).
 """
 import html
 import logging
 import re
 from html.parser import HTMLParser
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 import requests
 
 logger = logging.getLogger("url_intake")
 
+KNOWN_GITHUB_HANDLES = ["aayushbhatta230-ux", "aayushbhatta"]
+
 
 class SimpleMetadataParser(HTMLParser):
-    """Lightweight HTML parser to extract page title, meta description, and first heading."""
+    """Lightweight HTML parser to extract page title, meta description, and headings."""
 
     def __init__(self):
         super().__init__()
@@ -25,7 +28,7 @@ class SimpleMetadataParser(HTMLParser):
         self.title = ""
         self.description = ""
         self.h1 = ""
-        self.body_text_chunks = []
+        self.body_text_chunks: List[str] = []
         self._current_tag = ""
 
     def handle_starttag(self, tag: str, attrs: list):
@@ -60,20 +63,21 @@ class SimpleMetadataParser(HTMLParser):
             self.title += f" {cleaned}"
         elif self.in_h1 and not self.h1:
             self.h1 = cleaned
-        elif self._current_tag in ("p", "div", "section", "article", "li"):
-            if len(" ".join(self.body_text_chunks)) < 1500:
+        elif self._current_tag in ("p", "div", "section", "article", "li", "h2", "h3"):
+            if sum(len(c) for c in self.body_text_chunks) < 5000:
                 self.body_text_chunks.append(cleaned)
 
 
 class URLIntakeService:
     """Provides resilient inspection of GitHub repos and public web demo links."""
 
-    def __init__(self, timeout: int = 12):
+    def __init__(self, timeout: int = 15):
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update({
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 LocalProjectIntake/1.0",
             "Accept": "text/html,application/xhtml+xml,application/json",
+            "Connection": "close",
         })
 
     def is_github_url(self, url: str) -> bool:
@@ -82,17 +86,61 @@ class URLIntakeService:
         return "github.com" in (parsed.netloc or "").lower()
 
     def parse_github_repo(self, url: str) -> Optional[Tuple[str, str]]:
-        """Extracts owner and repo name from GitHub URL."""
-        parsed = urlparse(url.strip())
+        """Extracts owner and repo name from GitHub URL or owner/repo format."""
+        clean = url.strip()
+        if not clean.startswith("http://") and not clean.startswith("https://"):
+            if "/" in clean and not clean.startswith("/"):
+                parts = clean.split("/")
+                if len(parts) >= 2:
+                    return parts[0].strip(), parts[1].replace(".git", "").strip()
+            clean = f"https://{clean}"
+
+        parsed = urlparse(clean)
         parts = [p for p in parsed.path.strip("/").split("/") if p]
         if len(parts) >= 2:
             return parts[0], parts[1].replace(".git", "")
         return None
 
+    def resolve_repo_by_name(self, query: str) -> Optional[str]:
+        """
+        Auto-recognizes a repository name or query across known user GitHub accounts.
+        Example: 'city-ai-aayushifty' or 'AI OPERATED CITY' -> returns GitHub repo URL.
+        """
+        clean_query = query.strip().lower()
+        if not clean_query:
+            return None
+
+        # Direct normalization
+        slug = re.sub(r"[^a-z0-9]+", "-", clean_query).strip("-")
+
+        for handle in KNOWN_GITHUB_HANDLES:
+            try:
+                # Query user repos via public GitHub API
+                api_url = f"https://api.github.com/users/{handle}/repos?per_page=50&sort=updated"
+                resp = self.session.get(api_url, timeout=self.timeout)
+                if resp.status_code == 200:
+                    repos = resp.json()
+                    for r in repos:
+                        r_name = r.get("name", "").lower()
+                        r_desc = (r.get("description") or "").lower()
+
+                        # Exact or slug match
+                        if r_name == slug or slug in r_name or r_name in slug:
+                            return r.get("html_url")
+
+                        # Keyword match
+                        words = [w for w in clean_query.split() if len(w) > 2]
+                        if words and all(w in r_name or w in r_desc for w in words):
+                            return r.get("html_url")
+            except Exception as e:
+                logger.warning("Error resolving repo for %s: %s", handle, e)
+
+        return None
+
     def fetch_github_info(self, url: str) -> Dict[str, Any]:
         """
-        Fetches repository details using GitHub's public API and raw README.
-        Works without authentication (up to standard IP rate limits).
+        Fetches repository details using GitHub's public API and FULL raw README.
+        Captures full technical context without tiny truncations.
         """
         repo_info = self.parse_github_repo(url)
         if not repo_info:
@@ -103,14 +151,14 @@ class URLIntakeService:
         result: Dict[str, Any] = {
             "success": True,
             "type": "github",
-            "url": url,
+            "url": f"https://github.com/{owner}/{repo}",
             "owner": owner,
             "repo": repo,
             "title": f"{owner}/{repo}",
             "description": "",
             "language": "",
             "topics": [],
-            "readme_excerpt": "",
+            "readme_full": "",
             "formatted_summary": "",
         }
 
@@ -124,42 +172,38 @@ class URLIntakeService:
                 result["stars"] = data.get("stargazers_count", 0)
             elif resp.status_code == 404:
                 return {"success": False, "error": f"GitHub repository '{owner}/{repo}' not found or is private."}
-            else:
-                logger.warning("GitHub API returned HTTP %s for %s", resp.status_code, api_url)
         except requests.RequestException as e:
             logger.warning("GitHub API request failed: %s", e)
 
-        # Attempt to fetch README excerpt
+        # Attempt to fetch full README
         for branch in ("main", "master"):
             raw_url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/README.md"
             try:
                 readme_resp = self.session.get(raw_url, timeout=self.timeout)
                 if readme_resp.status_code == 200:
                     raw_text = readme_resp.text
-                    # Strip markdown links and headers for cleaner LLM context
-                    cleaned_readme = re.sub(r"!\[.*?\]\(.*?\)", "", raw_text)
-                    cleaned_readme = re.sub(r"\[(.*?)\]\(.*?\)", r"\1", cleaned_readme)
-                    # Excerpt first 1500 chars
-                    result["readme_excerpt"] = cleaned_readme[:1500].strip()
+                    # Clean badges and image markdown while preserving headings and text
+                    cleaned = re.sub(r"!\[.*?\]\(.*?\)", "", raw_text)
+                    cleaned = re.sub(r"\[(.*?)\]\(.*?\)", r"\1", cleaned)
+                    # Feed up to 8,000 characters to ensure full architecture & details are captured
+                    result["readme_full"] = cleaned[:8000].strip()
                     break
             except requests.RequestException:
                 pass
 
-        # Build combined summary
+        # Build comprehensive summary
         summary_lines = [
-            f"GitHub Project: {owner}/{repo}",
+            f"GitHub Repository: {owner}/{repo}",
             f"Primary Language: {result['language']}" if result['language'] else "",
             f"Description: {result['description']}" if result['description'] else "",
             f"Topics: {', '.join(result['topics'])}" if result['topics'] else "",
-            f"\nREADME Overview:\n{result['readme_excerpt']}" if result['readme_excerpt'] else "",
+            f"\nFull Technical README & Architecture:\n{result['readme_full']}" if result['readme_full'] else "",
         ]
         result["formatted_summary"] = "\n".join(line for line in summary_lines if line).strip()
         return result
 
     def fetch_webpage_info(self, url: str) -> Dict[str, Any]:
-        """
-        Fetches public demo or documentation webpage and extracts metadata.
-        """
+        """Fetches public demo or documentation webpage and extracts rich metadata."""
         if not url.startswith("http://") and not url.startswith("https://"):
             url = f"https://{url}"
 
@@ -173,19 +217,19 @@ class URLIntakeService:
 
         parser = SimpleMetadataParser()
         try:
-            parser.feed(resp.text[:100000])  # limit parse size
+            parser.feed(resp.text[:200000])
         except Exception as e:
             logger.warning("HTML parsing warning: %s", e)
 
         title = html.unescape(parser.title.strip()) or parser.h1.strip() or url
         description = html.unescape(parser.description.strip())
-        content_preview = " ".join(parser.body_text_chunks)[:1000].strip()
+        content_preview = " ".join(parser.body_text_chunks)[:4000].strip()
 
         formatted = [
             f"Page Title: {title}",
             f"Description: {description}" if description else "",
             f"Heading: {parser.h1.strip()}" if parser.h1 and parser.h1 != title else "",
-            f"Page Summary: {content_preview}" if content_preview else "",
+            f"Full Page Content:\n{content_preview}" if content_preview else "",
         ]
 
         return {
@@ -197,15 +241,30 @@ class URLIntakeService:
             "formatted_summary": "\n".join(f for f in formatted if f).strip(),
         }
 
-    def inspect_url(self, url: str) -> Dict[str, Any]:
-        """Auto-detects URL type and returns extracted summary context."""
-        if not url or not url.strip():
-            return {"success": False, "error": "URL cannot be empty."}
+    def inspect_url(self, input_text: str) -> Dict[str, Any]:
+        """
+        Auto-recognizes URL or repository name and returns extracted full summary context.
+        """
+        if not input_text or not input_text.strip():
+            return {"success": False, "error": "Input cannot be empty."}
 
-        clean_url = url.strip()
-        if self.is_github_url(clean_url):
-            return self.fetch_github_info(clean_url)
-        return self.fetch_webpage_info(clean_url)
+        clean = input_text.strip()
+
+        # If it's a GitHub URL or owner/repo format
+        if self.is_github_url(clean) or ("/" in clean and not clean.startswith("http")):
+            return self.fetch_github_info(clean)
+
+        # If it starts with standard http/https
+        if clean.startswith("http://") or clean.startswith("https://"):
+            return self.fetch_webpage_info(clean)
+
+        # Auto-resolve repository by title/name
+        resolved_url = self.resolve_repo_by_name(clean)
+        if resolved_url:
+            logger.info("Auto-recognized '%s' as repository %s", clean, resolved_url)
+            return self.fetch_github_info(resolved_url)
+
+        return self.fetch_webpage_info(clean)
 
 
 url_intake = URLIntakeService()

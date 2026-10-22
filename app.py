@@ -339,16 +339,40 @@ if menu == "✍️ Create & Publish":
 
         # Draft Generation Button
         if st.button("✨ Generate Grounded Technical Post", type="primary", use_container_width=True):
-            if not project_title and not author_notes and not intake_url:
-                st.error("Please provide at least a Project Title, URL, or Author Notes.")
+            if not project_title and not author_notes and not intake_url and not uploaded_file:
+                st.error("Please provide at least a Project Title, URL, Photo, or Notes.")
             else:
                 summary_ctx = st.session_state.get("fetched_summary", "")
                 img_analysis = st.session_state.get("image_analysis", "")
 
-                with st.spinner(f"Generating draft using local {config.ollama_writing_model}..."):
+                # Auto-recognize repository / URL if not already fetched
+                target_query = intake_url or project_title
+                if not summary_ctx and target_query:
+                    with st.spinner(f"Auto-recognizing repository for '{target_query}'..."):
+                        auto_info = url_intake.inspect_url(target_query)
+                        if auto_info.get("success"):
+                            summary_ctx = auto_info.get("formatted_summary", "")
+                            st.session_state["fetched_summary"] = summary_ctx
+                            if auto_info.get("url"):
+                                intake_url = auto_info.get("url")
+                                st.session_state["draft_url"] = intake_url
+                            if auto_info.get("title") and not project_title:
+                                project_title = auto_info.get("title")
+                                st.session_state["draft_title"] = project_title
+                            st.info(f"Auto-recognized repository: **{auto_info.get('title', intake_url)}**")
+
+                # If image attached but not yet analyzed, run analysis
+                if media_saved_path and not img_analysis:
+                    with st.spinner("Analyzing uploaded image context..."):
+                        v_res = ollama_client.analyze_image(media_saved_path)
+                        if v_res.get("success"):
+                            img_analysis = v_res.get("analysis", "")
+                            st.session_state["image_analysis"] = img_analysis
+
+                with st.spinner(f"Generating full technical post with {ollama_client.writing_model}..."):
                     gen_result = ollama_client.generate_draft(
                         mode=content_mode,
-                        title=project_title,
+                        title=project_title or "Technical Project",
                         summary_context=summary_ctx,
                         user_notes=author_notes,
                         image_analysis=img_analysis,
@@ -377,7 +401,7 @@ if menu == "✍️ Create & Publish":
                     if gen_result.get("is_fallback"):
                         st.info(gen_result.get("note", "Generated via offline engine."))
                     else:
-                        st.success(f"Generated post draft with {gen_result.get('model_used')}!")
+                        st.success(f"Generated comprehensive technical post with {gen_result.get('model_used')}!")
 
     with col_preview:
         st.subheader("2. Review, Edit & Preview")

@@ -93,8 +93,15 @@ def format_user_prompt(
         prompt_parts.append(f"\nAUTHOR'S SPECIFIC NOTES / KEY HIGHLIGHTS:\n{user_notes}")
 
     prompt_parts.append(
-        "\nREQUIREMENT: Produce a complete, polished post following the persona rules. "
-        "Include the project link at the end if provided."
+        "\nCRITICAL REQUIREMENT: Do NOT output a superficial or truncated summary. "
+        "Feed and cover the ENTIRE technical context, README details, architecture blocks, and user notes thoroughly. "
+        "Structure the post logically with:\n"
+        "1. Concrete Problem & Motivation: What tangible real-world or developer friction is being solved?\n"
+        "2. Technical Architecture & Stack: Name the real frameworks, models, hardware, and data flow from the context.\n"
+        "3. Core Features & Hard Trade-offs: Dive into key capabilities, latency optimizations, edge cases, or bugs handled.\n"
+        "4. Builder Takeaways: Honest reflection on what works and what is being refined next.\n"
+        "5. Project Link: Include the repository/demo link cleanly at the end.\n"
+        "Ensure full, rich depth (between 1,400 to 2,200 characters) so readers get the full picture without important parts being omitted."
     )
 
     return "\n".join(prompt_parts)
@@ -110,57 +117,67 @@ def generate_deterministic_offline_post(
 ) -> str:
     """
     Deterministic local fallback generator.
-    Produces high-quality, authentic posts even when Ollama is offline or uninstalled.
-    Guarantees the user is never blocked.
+    Produces comprehensive, authentic posts even when Ollama is offline or uninstalled.
+    Thoroughly weaves in README sections, features, and technical context.
     """
     clean_title = title.strip() or "Technical Project"
-    url_line = f"\n\nSource / Demo: {source_url}" if source_url else ""
-    visual_note = f"\n\nVisual architecture: {image_analysis.split('.')[0]}." if image_analysis else ""
-    notes_blurb = f"\n{user_notes}" if user_notes else ""
+    url_line = f"\n\nSource & Setup Details: {source_url}" if source_url else ""
+    visual_note = f"\n\nVisual Architecture / Interface: {image_analysis.strip()}" if image_analysis else ""
+
+    # Extract high-signal snippets from README / context
+    context_lines = [line.strip() for line in (context + "\n" + user_notes).splitlines() if line.strip()]
+    tech_highlights = [l for l in context_lines if any(k in l.lower() for k in ["•", "-", "*", "architecture", "feature", "engine", "model", "local", "stack", "pipeline"])][:5]
+    highlight_block = ("\n" + "\n".join(f"• {h.lstrip('•-* ')}" for h in tech_highlights)) if tech_highlights else ""
+
+    notes_blurb = f"\n\nContext & Specific Notes:\n{user_notes.strip()}" if user_notes.strip() else ""
 
     if mode == "lesson":
         return (
-            f"A practical engineering lesson from building {clean_title}:{notes_blurb}\n\n"
-            "When dealing with local performance and edge constraints, the biggest bottleneck "
-            "often isn't raw compute—it's memory bandwidth and uncoordinated I/O calls. "
-            "Profiling revealed where latency was silently compounding.\n\n"
-            "By isolating concurrent processes, enforcing strict buffer limits, and keeping dependencies minimal, "
-            "the system became significantly more predictable and lightweight.{visual_note}\n\n"
-            "For anyone building local-first software: always verify the memory footprint under sustained loads "
-            "before adding more abstractions.\n"
+            f"A practical engineering breakdown from building {clean_title}:{notes_blurb}\n\n"
+            "When designing local-first technical systems, the most demanding bottlenecks rarely stem from raw compute—they "
+            "arise from uncoordinated I/O pipelines, state synchronization, and unexpected memory fragmentation. "
+            "Deep debugging revealed where latency silently aggregated across system boundaries.\n\n"
+            f"Key technical areas addressed in this implementation:{highlight_block or chr(10) + '• Bounded memory footprint with sequential model execution' + chr(10) + '• Explicit error isolation at integration boundaries' + chr(10) + '• Zero reliance on brittle browser automation or third-party cloud services'}\n\n"
+            "By enforcing strict buffer limits, separating intake from inference engines, and prioritizing lightweight native persistence, "
+            f"the system achieved deterministic reliability across long runs.{visual_note}\n\n"
+            "For builders developing edge or local-first tooling: always benchmark and profile your worst-case memory allocations "
+            "before adding more abstraction layers."
             f"{url_line}\n\n"
-            "#SoftwareEngineering #BuildInPublic #OpenSource #SystemsDesign"
+            "#SoftwareEngineering #SystemsDesign #OpenSource #BuildInPublic #Python"
         )
     elif mode == "architecture":
         return (
-            f"Deep-dive into the architecture of {clean_title}:{notes_blurb}\n\n"
-            "The design goal was simple: complete local autonomy with zero cloud dependency and strict memory bounds.\n\n"
-            "Key architectural pillars:\n"
-            "• Local execution: All core pipelines run on-device, preserving user privacy and eliminating latency.\n"
-            "• Modularity: Clean separation between intake, inference engines, and persistent storage.\n"
-            "• Fault tolerance: Isolated state verification and defensive error recovery at system boundaries.{visual_note}\n\n"
-            "Keeping the footprint tight allows it to run smoothly even on standard 8 GB hardware without throttling.\n"
+            f"Deep-dive into the technical architecture of {clean_title}:{notes_blurb}\n\n"
+            "The core engineering objective was clear: complete local autonomy with zero cloud dependency, "
+            "strict memory bounds, and defensive integration guarantees.\n\n"
+            f"Core Architectural Pillars:{highlight_block or chr(10) + '• On-device execution: All core models and services run locally, preserving privacy and eliminating recurring latency' + chr(10) + '• Modular subsystem separation: Decoupled intake, generation pipelines, and persistent storage' + chr(10) + '• Defensive input verification: Validating inputs at system boundaries before passing down to domain services'}\n\n"
+            "By keeping the memory profile compact and coordinating resource usage sequentially, "
+            f"the architecture operates smoothly on standard personal computers without thermal throttling.{visual_note}\n\n"
+            "Would appreciate thoughts and technical feedback from fellow developers exploring local software architectures."
             f"{url_line}\n\n"
-            "#SystemDesign #Architecture #Python #OpenSource"
+            "#SystemDesign #Architecture #Python #OpenSource #DeveloperTools"
         )
     elif mode == "progress":
         return (
-            f"Build-in-public milestone on {clean_title}:{notes_blurb}\n\n"
-            "Shipped a set of core improvements focused on reliability and offline usability. "
-            "Balancing code quality with rapid iteration meant cutting unnecessary external dependencies "
-            f"and focusing purely on what makes the tool reliable.{visual_note}\n\n"
-            "Next step is stress-testing edge cases and refining user ergonomics.\n"
+            f"Build-in-public technical update on {clean_title}:{notes_blurb}\n\n"
+            "Shipped a substantial milestone focused on reliability, offline usability, and performance guarantees. "
+            "Balancing code cleanliness with rapid iteration meant cutting out unnecessary external dependencies and "
+            "focusing entirely on rock-solid fundamentals.\n\n"
+            f"Key implementations delivered:{highlight_block or chr(10) + '• Unified intake pipeline parsing project metadata automatically' + chr(10) + '• Robust error recovery for transient network interruptions' + chr(10) + '• Lightweight local persistence ensuring zero data loss'}\n\n"
+            f"The tooling is now significantly more resilient and responsive.{visual_note}\n\n"
+            "Next step is stress-testing corner cases and polishing the developer workflow."
             f"{url_line}\n\n"
-            "#BuildInPublic #IndieHacker #Engineering #Tech"
+            "#BuildInPublic #SoftwareEngineering #Tech #OpenSource"
         )
     else:  # launch
         return (
-            f"I've been working on {clean_title}, and today I'm sharing the repository and progress.{notes_blurb}\n\n"
-            "The project was built to solve a concrete engineering problem: delivering responsive, "
-            "privacy-preserving tooling that runs 100% locally on standard PC hardware without cloud subscriptions.\n\n"
-            f"Built with clean modular design, defensive input validation, and lightweight local persistence.{visual_note}\n\n"
-            "Code and setup details are available below. Would love feedback from fellow developers and builders.\n"
+            f"I've been working on {clean_title}, and today I'm sharing the repository, architecture, and live progress.{notes_blurb}\n\n"
+            "The project was built to address a real technical challenge: delivering fast, privacy-preserving, "
+            "and dependable tooling that runs 100% locally on standard hardware without expensive cloud APIs or subscription lock-in.\n\n"
+            f"Key Technical Highlights:{highlight_block or chr(10) + '• 100% local execution running on local hardware' + chr(10) + '• Clean modular codebase with defensive validation at every layer' + chr(10) + '• Zero reliance on scraping or insecure browser automation'}\n\n"
+            f"The architecture is designed to remain lightweight and fully functional offline.{visual_note}\n\n"
+            "Complete code and setup instructions are open for review below. Keen to hear insights and feedback from fellow builders."
             f"{url_line}\n\n"
-            "#OpenSource #DeveloperTools #Python #SoftwareEngineering"
+            "#OpenSource #DeveloperTools #Python #SoftwareEngineering #Tech"
         )
 

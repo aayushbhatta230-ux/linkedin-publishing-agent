@@ -56,7 +56,8 @@ class LinkedInClient:
             "Content-Type": "application/json",
             "X-Restli-Protocol-Version": PROTOCOL_VERSION,
             "LinkedIn-Version": LINKEDIN_VERSION,
-            "User-Agent": "LocalLinkedInAgent/1.0",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+            "Connection": "close",
         }
 
     def _handle_error_response(self, response: requests.Response, context: str) -> None:
@@ -91,7 +92,11 @@ class LinkedInClient:
         {'person_urn': 'urn:li:person:...', 'name': '...', 'email': '...'}
         Tries OpenID userinfo endpoint first, falls back to legacy /v2/me.
         """
-        headers = {"Authorization": f"Bearer {access_token.strip()}", "User-Agent": "LocalLinkedInAgent/1.0"}
+        headers = {
+            "Authorization": f"Bearer {access_token.strip()}",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+            "Connection": "close",
+        }
 
         # Attempt 1: Modern OpenID userinfo
         try:

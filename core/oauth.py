@@ -104,14 +104,26 @@ class LinkedInOAuth:
         }
         headers = {
             "Content-Type": "application/x-www-form-urlencoded",
-            "User-Agent": "LocalLinkedInAgent/1.0",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+            "Accept": "application/json",
+            "Connection": "close",
         }
 
-        try:
-            response = requests.post(TOKEN_URL, data=data, headers=headers, timeout=timeout)
-        except requests.RequestException as e:
-            logger.error("Network error during token exchange: %s", e)
-            raise TokenExchangeError(f"Network error communicating with LinkedIn: {e}") from e
+        last_err = None
+        response = None
+        for attempt in range(3):
+            try:
+                response = requests.post(TOKEN_URL, data=data, headers=headers, timeout=timeout)
+                break
+            except requests.RequestException as e:
+                last_err = e
+                logger.warning("Token exchange attempt %d failed (%s), retrying...", attempt + 1, e)
+                import time
+                time.sleep(1)
+
+        if response is None:
+            logger.error("Network error during token exchange after retries: %s", last_err)
+            raise TokenExchangeError(f"Network error communicating with LinkedIn: {last_err}") from last_err
 
         if response.status_code != 200:
             try:

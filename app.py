@@ -29,7 +29,7 @@ from core.url_intake import url_intake
 
 # Page Configuration
 st.set_page_config(
-    page_title="LinkedIn Publishing Agent",
+    page_title="aayushifty's LinkedIn Agent",
     page_icon="💼",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -177,7 +177,7 @@ ollama_health = ollama_client.check_health()
 
 # ================= SIDEBAR =================
 with st.sidebar:
-    st.markdown("### 💼 LinkedIn Agent")
+    st.markdown("### 💼 aayushifty's LinkedIn Agent")
     st.markdown(f"**Author:** {config.author_name}")
     st.markdown(f"**Role:** {config.author_role}")
     st.divider()
@@ -227,10 +227,10 @@ with st.sidebar:
 
 # ================= VIEW 1: CREATE & PUBLISH =================
 if menu == "✍️ Create & Publish":
-    st.markdown('<div class="main-header">Draft & Publish Technical Post</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header">aayushifty\'s LinkedIn Agent</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="sub-header">Submit code links, project images, or rough notes. '
-        'Local AI writes grounded, authentic posts without corporate clichés.</div>',
+        '<div class="sub-header">Feed your project repos, diagrams, or notes. '
+        'Local AI writes grounded, authentic posts without corporate clichés and publishes via official LinkedIn API.</div>',
         unsafe_allow_html=True,
     )
 

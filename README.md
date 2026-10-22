@@ -1,4 +1,4 @@
-# Local LinkedIn Publishing Agent
+# aayushifty's LinkedIn Agent
 
 > **100% Local, Zero Cloud Dependencies, RAM-Optimized for 8 GB Windows PCs.**  
 > Automatically analyzes your project repositories, demo sites, screenshots, or engineering notes using local AI (`qwen2.5:3b` + `moondream`), drafts authentic technical posts without corporate clichés, and publishes them through LinkedIn's official OAuth 2.0 & Posts REST API.

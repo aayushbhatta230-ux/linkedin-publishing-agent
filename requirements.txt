@@ -1,0 +1,17 @@
+# Core Framework
+streamlit>=1.38.0
+
+# HTTP & API Requests
+requests>=2.31.0
+
+# Secure Token Storage
+keyring>=24.0.0
+
+# Environment Configuration
+python-dotenv>=1.0.0
+
+# Image Processing (resizing for 8 GB RAM optimization)
+pillow>=10.0.0
+
+# Testing
+pytest>=7.4.0

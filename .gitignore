@@ -34,3 +34,5 @@ desktop.ini
 # Streamlit local settings
 .streamlit/
 
+
+.oauth_state_temp*

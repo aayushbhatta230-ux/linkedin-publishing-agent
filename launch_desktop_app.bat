@@ -18,3 +18,4 @@ if exist "C:\Program Files\Google\Chrome\Application\chrome.exe" (
 ) else (
     start http://localhost:8501
 )
+

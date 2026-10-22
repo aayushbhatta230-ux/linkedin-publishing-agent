@@ -27,10 +27,12 @@ from core.ollama_client import ollama_client
 from core.token_store import token_store
 from core.url_intake import url_intake
 
+LOGO_PATH = Path(__file__).resolve().parent / "assets" / "logo.png"
+
 # Page Configuration
 st.set_page_config(
     page_title="aayushifty's LinkedIn Agent",
-    page_icon="💼",
+    page_icon=str(LOGO_PATH) if LOGO_PATH.exists() else "💼",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -177,7 +179,10 @@ ollama_health = ollama_client.check_health()
 
 # ================= SIDEBAR =================
 with st.sidebar:
-    st.markdown("### 💼 aayushifty's LinkedIn Agent")
+    if LOGO_PATH.exists():
+        st.image(str(LOGO_PATH), width=230)
+    else:
+        st.markdown("### 💼 aayushifty's LinkedIn Agent")
     st.markdown(f"**Author:** {config.author_name}")
     st.markdown(f"**Role:** {config.author_role}")
     st.divider()

@@ -251,3 +251,4 @@ class OllamaClient:
 
 
 ollama_client = OllamaClient()
+

@@ -151,3 +151,4 @@ def test_linkedin_error_status_mapping(mock_post, client):
 
     with pytest.raises(LinkedInRateLimitError, match="rate limit exceeded"):
         client.create_post("valid_token", "urn:li:person:1", "Commentary")
+

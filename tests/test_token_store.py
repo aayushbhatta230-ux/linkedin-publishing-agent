@@ -79,3 +79,4 @@ def test_safe_disconnect_wipes_token(temp_token_store):
     assert temp_token_store.is_token_valid() is False
     status = temp_token_store.get_token_status()
     assert status["connected"] is False
+

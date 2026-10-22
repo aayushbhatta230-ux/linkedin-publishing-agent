@@ -736,3 +736,4 @@ elif menu == "⚙️ Diagnostics & Help":
         st.write(f"Uploads Path: `{config.media_upload_dir}`")
         st.write(f"LinkedIn Client ID Configured: `{'Yes' if config.is_linkedin_configured() else 'No'}`")
         st.write(f"LinkedIn Redirect URI: `{config.redirect_uri}`")
+

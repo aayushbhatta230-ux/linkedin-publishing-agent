@@ -106,3 +106,4 @@ def test_history_ordering_and_deletion(temp_db):
     deleted = temp_db.delete_post(id_b)
     assert deleted is True
     assert len(temp_db.get_history()) == 1
+

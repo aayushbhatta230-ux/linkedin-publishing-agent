@@ -85,3 +85,4 @@ def test_fetch_webpage_info_success(mock_get, intake_service):
     assert res["title"] == "KrishiPath AI - Crop Health Diagnostics"
     assert "Offline-first" in res["description"]
     assert "Offline Plant Pathogen Vision" in res["formatted_summary"]
+

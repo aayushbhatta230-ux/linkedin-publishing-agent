@@ -48,3 +48,4 @@ class AppConfig:
 # Singleton configuration instance
 config = AppConfig()
 config.media_upload_dir.mkdir(exist_ok=True, parents=True)
+

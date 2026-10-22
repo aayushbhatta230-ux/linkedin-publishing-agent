@@ -130,3 +130,4 @@ def test_generate_draft_offline_fallback(mock_health):
     assert res["is_fallback"] is True
     assert "OfflinePay ESP32" in res["text"]
     assert "Deterministic Offline Engine" in res["model_used"]
+

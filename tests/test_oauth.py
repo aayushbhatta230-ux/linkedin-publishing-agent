@@ -104,3 +104,4 @@ def test_exchange_code_error_handling(mock_post):
             client_secret="client_secret_456",
             redirect_uri="http://localhost:8501",
         )
+

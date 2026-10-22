@@ -131,3 +131,4 @@ class LinkedInOAuth:
             raise TokenExchangeError(f"Access token missing in response: {token_data}")
 
         return token_data
+

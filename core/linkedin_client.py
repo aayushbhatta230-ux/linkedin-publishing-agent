@@ -247,3 +247,4 @@ class LinkedInClient:
 
 
 linkedin_client = LinkedInClient()
+

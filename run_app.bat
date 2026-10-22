@@ -15,3 +15,4 @@ if not exist ".venv" (
 echo [*] Launching Streamlit interface on http://localhost:8501...
 call .\.venv\Scripts\streamlit run app.py
 pause
+

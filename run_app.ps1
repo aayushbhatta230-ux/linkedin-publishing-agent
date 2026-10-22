@@ -25,3 +25,4 @@ try {
 
 Write-Host "`n[*] Launching Streamlit web application on http://localhost:8501..." -ForegroundColor Green
 .\.venv\Scripts\streamlit run app.py
+

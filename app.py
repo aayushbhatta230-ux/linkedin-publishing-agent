@@ -483,6 +483,7 @@ if menu == "✍️ Create & Publish":
                                 except Exception as img_err:
                                     st.warning(f"Media upload encountered an issue: {img_err}. Posting commentary.")
 
+                            draft_id = st.session_state.get("active_draft_id")
                             try:
                                 post_result = linkedin_client.create_post(
                                     access_token=access_token,
@@ -494,7 +495,6 @@ if menu == "✍️ Create & Publish":
                                 post_urn = post_result.get("post_urn", "")
 
                                 # Update DB status
-                                draft_id = st.session_state.get("active_draft_id")
                                 if draft_id:
                                     db.update_status(
                                         post_id=draft_id,

@@ -5,6 +5,7 @@ Complies with official LinkedIn documentation:
 - https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api
 """
 import logging
+import os
 from typing import Any, Dict, Optional, Tuple
 
 import requests
@@ -17,7 +18,7 @@ REST_IMAGES_ENDPOINT = f"{REST_API_BASE}/rest/images?action=initializeUpload"
 USERINFO_ENDPOINT = f"{REST_API_BASE}/v2/userinfo"
 LEGACY_ME_ENDPOINT = f"{REST_API_BASE}/v2/me"
 
-LINKEDIN_VERSION = "202401"
+LINKEDIN_VERSION = os.getenv("LINKEDIN_API_VERSION", "202610")
 PROTOCOL_VERSION = "2.0.0"
 
 

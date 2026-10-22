@@ -97,10 +97,10 @@ class LinkedInOAuth:
 
         data = {
             "grant_type": "authorization_code",
-            "code": code,
-            "client_id": client_id,
-            "client_secret": client_secret,
-            "redirect_uri": redirect_uri,
+            "code": code.strip(),
+            "client_id": client_id.strip(),
+            "client_secret": client_secret.strip(),
+            "redirect_uri": redirect_uri.strip(),
         }
         headers = {
             "Content-Type": "application/x-www-form-urlencoded",

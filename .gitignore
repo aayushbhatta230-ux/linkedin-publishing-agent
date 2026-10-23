@@ -7,6 +7,8 @@ ENV/
 # Secrets and local credentials (CRITICAL: NEVER COMMIT)
 .env
 .secure_token.json
+# Owner's shared LinkedIn app credentials: give to friends directly, never push publicly
+shared_client.json
 *.key
 *.pem
 *.token

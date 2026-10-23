@@ -137,6 +137,18 @@ def save_env_credentials(client_id: str, client_secret: str, author_name: str, a
     config.author_role = author_role.strip()
 
 
+def export_shared_client() -> Path:
+    """Writes the owner's credentials to shared_client.json so friends can connect without a developer app."""
+    from config import SHARED_CLIENT_FILE
+    import json
+    SHARED_CLIENT_FILE.write_text(json.dumps({
+        "client_id": config.client_id,
+        "client_secret": config.client_secret,
+        "redirect_uri": config.redirect_uri,
+    }, indent=2), encoding="utf-8")
+    return SHARED_CLIENT_FILE
+
+
 def handle_oauth_callback():
     """Intercepts and handles OAuth 2.0 query parameters from LinkedIn redirect."""
     params = st.query_params
@@ -468,6 +480,15 @@ if menu == "✍️ Create & Publish":
             unsafe_allow_html=True,
         )
 
+        if edited_text.strip():
+            with st.expander("📸 Instagram caption (copy & paste)", expanded=False):
+                from core.persona import build_instagram_caption
+                st.code(build_instagram_caption(edited_text), language=None)
+                st.caption(
+                    "Post as a carousel or Reel with your project photo; put the repo link in your bio. "
+                    "Reply to every comment in the first hour, since early engagement drives reach for new accounts."
+                )
+
         # LinkedIn Card Preview
         st.markdown("**Live LinkedIn Card Preview:**")
         author_display = auth_status.get("member_name") or config.author_name
@@ -641,15 +662,18 @@ elif menu == "🔑 LinkedIn Auth & Status":
         else:
             st.warning("⚠️ **Disconnected / Not Authorized**")
             st.write(
-                "To publish directly through the official API, connect your LinkedIn Developer App below. "
-                "If you haven't created one yet, the manual fallback in the draft tab is always available."
+                "Click **Connect with LinkedIn**, sign in on LinkedIn's official page, and approve access. "
+                "No developer app needed. The manual copy/paste fallback in the draft tab always works too."
             )
 
     with col_stat2:
         st.subheader("Connect via Official OAuth Flow")
 
         if not config.is_linkedin_configured():
-            st.warning("LinkedIn Developer credentials not yet configured.")
+            st.warning(
+                "No LinkedIn app configured. Ask the person who shared this app for their `shared_client.json` "
+                "and drop it into the app folder, or enter your own credentials under Advanced below."
+            )
         else:
             try:
                 auth_url, state_token = LinkedInOAuth.build_auth_url(
@@ -678,8 +702,11 @@ elif menu == "🔑 LinkedIn Auth & Status":
             except OAuthError as e:
                 st.error(f"Configuration error: {e}")
 
-        # In-App Credential Setup for anyone (or friends)
-        with st.expander("⚙️ Enter or Edit Credentials Directly in App", expanded=not config.is_linkedin_configured()):
+        if config.uses_shared_client():
+            st.caption("Using the shared app configuration. You only need to sign in with your own LinkedIn account.")
+
+        # Advanced: own developer app (app owner) + profile
+        with st.expander("⚙️ Advanced: Profile & Own Developer App", expanded=False):
             st.caption("Enter your details below to save them directly to your local `.env`:")
             input_name = st.text_input("Your Name / Display Name", value=config.author_name)
             input_role = st.text_input("Your Role / Headline", value=config.author_role)
@@ -694,6 +721,14 @@ elif menu == "🔑 LinkedIn Auth & Status":
                     st.rerun()
                 else:
                     st.error("Please provide both Client ID and Client Secret.")
+
+            if config.is_linkedin_configured() and not config.uses_shared_client():
+                st.caption(
+                    "App owner: export your credentials so friends can connect with one click. "
+                    "Share `shared_client.json` privately (it contains your client secret; it is git-ignored)."
+                )
+                if st.button("📤 Export shared_client.json for friends", use_container_width=True):
+                    st.success(f"Saved to `{export_shared_client()}`")
 
     st.divider()
     st.subheader("Security & Privacy Guarantees")

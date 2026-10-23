@@ -33,12 +33,15 @@ PROFILE:
 CORE WRITING PRINCIPLES:
 1. Grounded & Authentic: Speak from hands-on code, hardware wiring, latency optimizations, and debugging logs.
 2. Technically Specific: Mention real tools, architectures, trade-offs, and edge cases. Avoid vague generalities.
-3. Concise & High Signal: Clean paragraph breaks. Strong, informative first line (no clickbait).
+3. Hook First (reach matters, author is growing from zero followers): The first line must stop the scroll on its own, since LinkedIn cuts posts after roughly 210 characters ("...see more"). Use a concrete surprising result, a specific mistake, or a bold but true claim, under 120 characters. No clickbait, no fake numbers.
+3b. Skimmable: One idea per short paragraph (1-3 lines), blank line between paragraphs, so the post reads well on a phone.
 4. Humble & Curious: Acknowledge bugs, mistakes, performance limits, and ongoing questions.
 5. Absolute Truthfulness: NEVER invent fake benchmarks, fake GitHub stars, or imaginary production deployments.
 6. Zero Corporate Sludge: Strictly avoid: {', '.join(BANNED_PHRASES)}.
 7. Minimal Emojis: Maximum 1 or 2 subtle, relevant emojis across the entire post, or none.
 8. Relevant Hashtags: End with 3-4 specific technical hashtags (e.g. #Python #OpenSource #Robotics #ComputerVision).
+9. Invite Conversation: Close (before the hashtags) with one specific, easy-to-answer question for other builders. Comments are the strongest reach signal.
+10. Links: Put the repository/demo link near the end, never in the first lines.
 
 Output ONLY the complete post text ready for review. Do not include meta commentary, preamble, or quotation marks around the post.
 """
@@ -101,7 +104,8 @@ def format_user_prompt(
         "3. Core Features & Hard Trade-offs: Dive into key capabilities, latency optimizations, edge cases, or bugs handled.\n"
         "4. Builder Takeaways: Honest reflection on what works and what is being refined next.\n"
         "5. Project Link: Include the repository/demo link cleanly at the end.\n"
-        "Ensure full, rich depth (between 1,400 to 2,200 characters) so readers get the full picture without important parts being omitted."
+        "6. Closing Question: One specific question that invites other engineers to comment.\n"
+        "Ensure full, rich depth (between 1,300 to 2,000 characters) so readers get the full picture without important parts being omitted."
     )
 
     return "\n".join(prompt_parts)
@@ -181,3 +185,45 @@ def generate_deterministic_offline_post(
             "#OpenSource #DeveloperTools #Python #SoftwareEngineering #Tech"
         )
 
+
+
+INSTAGRAM_BASE_TAGS = [
+    "#coding", "#programming", "#developer", "#softwareengineer", "#tech",
+    "#buildinpublic", "#codinglife", "#computerscience", "#100daysofcode", "#learntocode",
+]
+INSTAGRAM_CAPTION_LIMIT = 2200
+INSTAGRAM_MAX_HASHTAGS = 15
+
+
+def build_instagram_caption(post_text: str, max_body_chars: int = 1200) -> str:
+    """
+    Converts a LinkedIn draft into an Instagram caption tuned for discovery by new accounts:
+    hook kept as the first line, body trimmed for mobile, links swapped for "link in bio",
+    a comment prompt, and a mix of the post's own niche hashtags plus broader discovery tags.
+    """
+    import re
+
+    lines = post_text.strip().splitlines()
+    body_lines = [l for l in lines if not re.fullmatch(r"(\s*#\w+)+\s*", l)]
+    own_tags = [t.lower() for t in re.findall(r"#\w+", post_text)]
+
+    body = "\n".join(body_lines).strip()
+    has_link = bool(re.search(r"https?://\S+", body))
+    body = re.sub(r"[^\n]*https?://\S+[^\n]*\n?", "", body).strip()
+    if len(body) > max_body_chars:
+        cut = body[:max_body_chars].rsplit("\n", 1)[0].rsplit(". ", 1)[0]
+        body = cut.rstrip(" .,") + "..."
+
+    extras = []
+    if has_link:
+        extras.append("🔗 Link in bio")
+    extras.append("💬 Drop a comment if you have built something similar. Save this for later.")
+
+    tags = []
+    for t in own_tags + INSTAGRAM_BASE_TAGS:
+        if t not in tags:
+            tags.append(t)
+    tags = tags[:INSTAGRAM_MAX_HASHTAGS]
+
+    caption = f"{body}\n\n" + "\n".join(extras) + "\n.\n.\n" + " ".join(tags)
+    return caption[:INSTAGRAM_CAPTION_LIMIT]

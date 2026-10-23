@@ -1,0 +1,10 @@
+.venv/
+uploads/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.db
+*.ico
+*.png
+.git/
+.oauth_state_temp

@@ -13,7 +13,7 @@ from typing import Optional
 import streamlit as st
 from PIL import Image
 
-from config import config
+from config import SHARED_CLIENT_FILE, config
 from core.db import db
 from core.linkedin_client import (
     LinkedInAPIError,
@@ -704,6 +704,14 @@ elif menu == "🔑 LinkedIn Auth & Status":
 
         if config.uses_shared_client():
             st.caption("Using the shared app configuration. You only need to sign in with your own LinkedIn account.")
+        elif SHARED_CLIENT_FILE.exists():
+            st.info("💡 A `shared_client.json` file is present in your folder.")
+            if st.button("🔄 Switch to Shared Credentials (shared_client.json)", use_container_width=True):
+                save_env_credentials("", "", config.author_name, config.author_role)
+                st.success("Switched to shared credentials! Reloading...")
+                import time
+                time.sleep(1)
+                st.rerun()
 
         # Advanced: own developer app (app owner) + profile
         with st.expander("⚙️ Advanced: Profile & Own Developer App", expanded=False):
